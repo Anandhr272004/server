@@ -103,15 +103,41 @@ app.post('/signup', async (req, res) => {
 });
 
 // Update a user by ID
+// app.put('/edituser/:id', async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { date, ...rest } = req.body;
+//     const formattedDate = date ? moment.utc(date, 'YYYY-MM-DD').toDate() : undefined;
+
+//     const updatedUserData = {
+//       ...rest,
+//       date: formattedDate,
+//     };
+
+//     const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, { new: true });
+//     if (updatedUser) {
+//       updatedUser.date = moment.utc(updatedUser.date).format('YYYY-MM-DD');
+//       res.status(200).json(updatedUser);
+//     } else {
+//       res.status(404).send('User not found');
+//     }
+//   } catch (err) {
+//     res.status(500).send('Error updating user: ' + err);
+//   }
+// });
+
+// Update a user by ID
 app.put('/edituser/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { date, ...rest } = req.body;
+    const { date, password, confirmPassword, ...rest } = req.body;
+
     const formattedDate = date ? moment.utc(date, 'YYYY-MM-DD').toDate() : undefined;
 
     const updatedUserData = {
       ...rest,
       date: formattedDate,
+      password: password ? password : undefined, // Only update password if provided
     };
 
     const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, { new: true });
@@ -125,6 +151,7 @@ app.put('/edituser/:id', async (req, res) => {
     res.status(500).send('Error updating user: ' + err);
   }
 });
+
 
 // Delete a user by ID
 app.delete('/users/:id', async (req, res) => {
