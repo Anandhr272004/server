@@ -69,38 +69,6 @@ app.post('/adduser', upload.single('photo'), async (req, res) => {
   }
 });
 
-// New API route for sign-up (add this to your existing backend code)
-app.post('/signup', async (req, res) => {
-  try {
-    const { name, email, phone, password, confirmPassword } = req.body;
-
-    // Check if the user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
-
-    // Validate that password and confirmPassword match
-    if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Passwords do not match' });
-    }
-
-    // Create a new user object
-    const newUser = new User({
-      name,
-      email,
-      phone,
-      password,  // Ideally, password should be hashed before saving in production
-      confirmPassword,
-    });
-
-    // Save the user to the database
-    const savedUser = await newUser.save();
-    res.status(201).json(savedUser);
-  } catch (err) {
-    res.status(500).send('Error registering user: ' + err);
-  }
-});
 
 // Update a user by ID
 // app.put('/edituser/:id', async (req, res) => {
