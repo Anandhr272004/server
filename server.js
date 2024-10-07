@@ -198,14 +198,14 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model('users', userSchema);
 
 // Get all users
-app.get('/users', async (req, res) => {
-  try {
-    const users = await User.find();
-    res.status(200).json(users);
-  } catch (err) {
-    res.status(500).send('Error retrieving users: ' + err);
-  }
-});
+// app.get('/users', async (req, res) => {
+//   try {
+//     const users = await users.find();
+//     res.status(200).json(users);
+//   } catch (err) {
+//     res.status(500).send('Error retrieving users: ' + err);
+//   }
+// });
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -252,7 +252,19 @@ app.post('/api/users', async (req, res) => {
     res.status(500).send('Error adding user: ' + err);
   }
 });
+// // Add a new user
+app.post('/adduser', upload.single('photo'), async (req, res) => {
+  try {
+    const { date, ...rest } = req.body;
+    const formattedDate = moment.utc(date, 'YYYY-MM-DD').toDate();
 
+    const newUser = new User({ ...rest, date: formattedDate });
+    const savedUser = await newUser.save();
+    res.status(201).json(savedUser);
+  } catch (err) {
+    res.status(500).send('Error adding user: ' + err);
+  }
+});
 // Fetch all users
 app.get('/api/allusers', async (req, res) => {
   try {
@@ -260,6 +272,14 @@ app.get('/api/allusers', async (req, res) => {
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users', error: error.message });
+  }
+});
+app.get('/users', async (req, res) => {
+  try {
+    const users = await User.find(); // This should be User.find() instead of users.find()
+    res.status(200).json(users);
+  } catch (err) {
+    res.status(500).send('Error retrieving users: ' + err);
   }
 });
 
