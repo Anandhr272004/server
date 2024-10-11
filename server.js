@@ -12,13 +12,8 @@
 // app.use(express.json({ limit: '10mb' }));
 // app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // app.use(cors());
-// // app.use(cors({
-// //   origin: 'http://localhost:3000', // Change to your frontend's URL
-// //   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-// //   credentials: true
-// // }));
 
-// app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// // app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 
 
@@ -44,27 +39,23 @@
 // const User = mongoose.model('users', userSchema);
 
 // // Multer configuration for image upload
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     cb(null, 'uploads/'); // Destination folder
-//   },
-//   filename: (req, file, cb) => {
-//     // cb(null, Date.now() + path.extname(file.originalname)); // Appending file extension
-//     cb(null, Date.now() + '-' + file.originalname); // Generate a unique file name
-//   }
-// });
+// // const storage = multer.diskStorage({
+// //   destination: (req, file, cb) => {
+// //     cb(null, 'uploads/'); // Destination folder
+// //   },
+// //   filename: (req, file, cb) => {
+// //     // cb(null, Date.now() + path.extname(file.originalname)); // Appending file extension
+// //     cb(null, Date.now() + '-' + file.originalname); // Generate a unique file name
+// //   }
+// // });
+// const storage = multer.memoryStorage();
 
-// // const upload = multer({ storage });
+// const upload = multer({ storage });
 // // const upload = multer({ storage: storage });
 // // const upload = multer({ 
 // //   limits: { fileSize: 25 * 1024 * 1024 }, // 5 MB limit
  
 // // });
-// const upload = multer({ dest: 'uploads/' });
-// const uploadsDir = 'uploads';
-// if (!fs.existsSync(uploadsDir)) {
-//   fs.mkdirSync(uploadsDir);
-// }
 
 
 // // Get all users
@@ -83,7 +74,6 @@
 // // Add a new user with image upload (via multer) and email/phone validation
 // app.post('/api/users',upload.single('image'), async (req, res) => {
 
-//   const imageUrl = `http://localhost:5000/uploads/${req.file.filename}`; // Adjust this based on your setup
 //   try {
 //     const { email, phone, password, confirmPassword, ...userData } = req.body;
 
@@ -212,7 +202,7 @@
 
 
 
-//////
+// //////
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -305,6 +295,22 @@ app.post('/api/users', upload.single('image'), async (req, res) => {
   }
 });
 
+// // Add a new user with an image (Multer upload)
+app.post('/adduser', upload.single('photo'), async (req, res) => {
+  try {
+    const { date, ...rest } = req.body;
+    const formattedDate = moment.utc(date, 'YYYY-MM-DD').toDate();
+
+    const newUser = new User({ ...rest, date: formattedDate, image: req.file.path });
+    const savedUser = await newUser.save();
+    res.status(201).json(savedUser);
+     res.send('User saved successfully');
+  } catch (err) {
+    console.error('Database error:', err); // Log the error
+    res.status(500).send('Error adding user: ' + err);
+  }
+});
+
 // Update a user by ID with base64 image
 app.put('/edituser/:id', upload.single('image'), async (req, res) => {
   try {
@@ -340,6 +346,47 @@ app.put('/edituser/:id', upload.single('image'), async (req, res) => {
   } catch (err) {
     console.error('Error updating user:', err); // Log the error
     res.status(500).send('Error updating user: ' + err);
+  }
+});
+// Update a user by ID
+app.put('/edituser/:id', upload.single('photo'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, password, confirmPassword, ...rest } = req.body;
+
+    if (password && password !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
+    }
+
+    const formattedDate = date ? moment.utc(date, 'YYYY-MM-DD').toDate() : undefined;
+
+    const updatedUserData = {
+      ...rest,
+      date: formattedDate,
+      password: password || undefined,
+      image: req.file ? req.file.path : rest.image, // Update image if provided
+    };
+
+    const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, { new: true });
+    if (updatedUser) {
+      updatedUser.date = moment.utc(updatedUser.date).format('YYYY-MM-DD');
+      res.status(200).json(updatedUser);
+    } else {
+      res.status(404).send('User not found');
+    }
+  } catch (err) {
+    res.status(500).send('Error updating user: ' + err);
+  }
+});
+
+// Delete a user by ID
+app.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await User.findByIdAndDelete(id);
+    res.status(200).send('User deleted successfully');
+  } catch (err) {
+    res.status(500).send('Error deleting user: ' + err);
   }
 });
 
