@@ -294,7 +294,28 @@ app.post('/api/users', upload.single('image'), async (req, res) => {
     res.status(500).send('Error adding user: ' + err);
   }
 });
+// // Login API route
+app.post('/api/users/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
+    // Check if user exists by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User not registered' });
+    }
+
+    // Check if the password matches
+    if (user.password !== password) {
+      return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    // Success: return user data or a success message
+    res.status(200).json({ message: 'Login successful', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error logging in', error: error.message });
+  }
+});
 // // Add a new user with an image (Multer upload)
 app.post('/adduser', upload.single('photo'), async (req, res) => {
   try {
