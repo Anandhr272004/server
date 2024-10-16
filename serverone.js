@@ -18,7 +18,7 @@ mongoose.connect('mongodb://localhost:27017/backend', {
 });
 
 // Create a simple route
-app.get('/', (req, res) => {
+app.get('/get', (req, res) => {
   res.send('Hello, MongoDB is connected!');
 });
 
