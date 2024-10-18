@@ -240,7 +240,7 @@ const userSchema = new mongoose.Schema({
   password: String,
   confirmPassword: String,
   date: { type: Date, default: Date.now },
-  // image: String,  
+  image: String,  
 });
 
 // Create the User model (MongoDB collection will be named 'users')
@@ -295,7 +295,7 @@ app.post('/api/users', upload.single('image'), async (req, res) => {
       phone,
       password,
       confirmPassword,
-      // image: imageBase64,  
+      image: imageBase64,  
     });
 
     const savedUser = await newUser.save();  // Save the user to the database
@@ -368,7 +368,7 @@ app.put('/edituser/:id', upload.single('image'), async (req, res) => {
       ...rest,
       date: formattedDate,
       password: password || undefined,
-      // image: imageBase64, 
+      image: imageBase64, 
     };
 
     // Update the user in the database
