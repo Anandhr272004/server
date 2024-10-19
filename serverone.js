@@ -1,83 +1,188 @@
+// Import required libraries
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const bodyParser = require('body-parser');
+const multer = require('multer');
+const moment = require('moment');
 
+// Initialize app
 const app = express();
-app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' })); // Increase body size limit to accommodate base64 images
 
-// Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/ecommerce', { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB connected'))
-    .catch((error) => console.log('Error connecting to MongoDB:', error));
+app.use(express.json({ limit: '10mb' })); 
+app.use(express.urlencoded({ limit: '10mb', extended: true })); 
+app.use(cors());  
 
-// Define Product Schema and Model
-const productSchema = new mongoose.Schema({
-    name: String,
-    price: Number,
-    description: String,  // New description field
-    imageBase64: String,  // Store the image as a base64 string
+mongoose.connect('mongodb://localhost:27017/userlogin', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true, 
+})
+  .then(() => console.log('Connected to MongoDB')) 
+  .catch((err) => console.log('Error connecting to MongoDB:', err)); 
+
+// Define the user schema and model for MongoDB
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  phone: String,
+  password: String,
+  confirmPassword: String,
+  date: { type: Date, default: Date.now },
+  image: String,  
 });
 
-const Product = mongoose.model('Product', productSchema);
+// Create the User model (MongoDB collection will be named 'users')
+const User = mongoose.model('login', userSchema);
 
-// Route to Add a Product
-app.post('/api/products', async (req, res) => {
-    const { name, price, description, imageBase64 } = req.body;
+// Configure Multer to store uploaded files in memory (as a buffer)
+const storage = multer.memoryStorage();  // Storing files in memory
+const upload = multer({ storage });  // Setting up Multer with memory storage
 
-    try {
-        const newProduct = new Product({ name, price, description, imageBase64 });
-        await newProduct.save();
-        res.status(201).json(newProduct);
-    } catch (error) {
-        res.status(500).json({ message: 'Error adding product', error });
+// Route to get all users from the database
+app.get('/users', async (req, res) => {
+  try {
+    const users = await User.find();  // Retrieve all users
+    res.status(200).json(users);  // Send the users as JSON
+  } catch (err) {
+    res.status(500).send('Error retrieving users: ' + err); 
+  }
+});
+
+// Route to add a new user with an image (stored as base64)
+app.post('/api/users', upload.single('image'), async (req, res) => {
+  try {
+    const { email, phone, password, confirmPassword, ...userData } = req.body;
+
+    // Check if email already exists
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({ message: 'Email already exists' });
     }
-});
 
-// Route to Get All Products
-app.get('/api/products', async (req, res) => {
-    try {
-        const products = await Product.find();
-        res.status(200).json(products);
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching products', error });
+    // Check if phone number already exists
+    const phoneExists = await User.findOne({ phone });
+    if (phoneExists) {
+      return res.status(400).json({ message: 'Phone number already exists' });
     }
-});
 
-// Route to Update a Product
-app.put('/api/products/:id', async (req, res) => {
-    const { name, price, description, imageBase64 } = req.body;
-    
-    try {
-        // Find the product by ID and update it with the new data
-        const updatedProduct = await Product.findByIdAndUpdate(
-            req.params.id,
-            { name, price, description, imageBase64 },  // New product data
-            { new: true }  // Return the updated document
-        );
-        
-        if (!updatedProduct) {
-            return res.status(404).json({ message: 'Product not found' });
-        }
-
-        res.status(200).json(updatedProduct);  // Send the updated product as response
-    } catch (error) {
-        res.status(500).json({ message: 'Error updating product', error });
+    // Check if passwords match
+    if (password !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
     }
-});
 
-app.delete('/api/products/:id', async (req, res) => {
-    try {
-        await Product.findByIdAndDelete(req.params.id);
-        res.status(200).json({ message: 'Product deleted successfully' });
-    } catch (error) {
-        res.status(500).json({ message: 'Error deleting product', error });
+    // Convert the uploaded image to base64
+    let imageBase64 = null;
+    if (req.file) {
+      imageBase64 = req.file.buffer.toString('base64');  // Convert image buffer to base64 string
     }
+
+    // Create a new user
+    const newUser = new User({
+      ...userData,
+      email,
+      phone,
+      password,
+      confirmPassword,
+      image: imageBase64,  
+    });
+
+    const savedUser = await newUser.save();  // Save the user to the database
+    res.status(201).json(savedUser);  // Respond with the saved user
+  } catch (err) {
+    console.error('Error adding user:', err);  // Log error if something goes wrong
+    res.status(500).send('Error adding user: ' + err);  // Error message to client
+  }
 });
 
+// Login API route for user authentication
+app.post('/api/users/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-const PORT = 5001;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    // Check if the user exists in the database
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ message: 'User not registered' });
+    }
+
+    // Check if the provided password matches the user's password
+    if (user.password !== password) {
+      return res.status(400).json({ message: 'Invalid email or password' });
+    }
+
+    // Login successful
+    res.status(200).json({ message: 'Login successful', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Error logging in', error: error.message });  // Handle login error
+  }
 });
+
+// Add a new user with an image (image stored in file path)
+app.post('/adduser', upload.single('photo'), async (req, res) => {
+  try {
+    const { date, ...rest } = req.body;
+    const formattedDate = moment.utc(date, 'YYYY-MM-DD').toDate();  // Format the date from input
+
+    const newUser = new User({ ...rest, date: formattedDate, image: req.file.path });  // Store the image path
+    const savedUser = await newUser.save();  // Save user to the database
+    res.status(201).json(savedUser);
+    res.send('User saved successfully');
+  } catch (err) {
+    console.error('Database error:', err);  // Log the error
+    res.status(500).send('Error adding user: ' + err);
+  }
+});
+
+// Update a user by ID (with base64 image support)
+app.put('/edituser/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, password, confirmPassword, ...rest } = req.body;
+
+    // Check if passwords match during update
+    if (password && password !== confirmPassword) {
+      return res.status(400).json({ message: 'Passwords do not match' });
+    }
+
+    const formattedDate = date ? moment.utc(date, 'YYYY-MM-DD').toDate() : undefined;  // Format date
+
+    // Handle image update (convert to base64)
+    let imageBase64 = rest.image;
+    if (req.file) {
+      imageBase64 = req.file.buffer.toString('base64');
+    }
+
+    const updatedUserData = {
+      ...rest,
+      date: formattedDate,
+      password: password || undefined,
+      image: imageBase64, 
+    };
+
+    // Update the user in the database
+    const updatedUser = await User.findByIdAndUpdate(id, updatedUserData, { new: true });
+    if (updatedUser) {
+      updatedUser.date = moment.utc(updatedUser.date).format('YYYY-MM-DD');  // Format the date for response
+      res.status(200).json(updatedUser);  // Send updated user data
+    } else {
+      res.status(404).send('User not found');  // Handle case where user is not found
+    }
+  } catch (err) {
+    console.error('Error updating user:', err);  // Log the error
+    res.status(500).send('Error updating user: ' + err);  // Error message to client
+  }
+});
+
+// Delete a user by ID
+app.delete('/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await User.findByIdAndDelete(id);  // Delete the user from the database
+    res.status(200).send('User deleted successfully');
+  } catch (err) {
+    res.status(500).send('Error deleting user: ' + err);  // Handle deletion error
+  }
+});
+
+// Start the server on port 5000
+const PORT = 5002;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));  // Log server startup
